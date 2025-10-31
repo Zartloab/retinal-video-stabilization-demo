@@ -65,7 +65,7 @@ GitHub Actions (see `.github/workflows/ci.yml`) runs lint (`ruff`, `black --chec
 - Optical flow fallback when features are sparse.
 - Learning-based extensions to benchmark against classical methods.
 
-## How I’d explain this in an interview
+## Notes to present
 
 - Approach: Feature-based global stabilisation (ORB/SIFT → matches → RANSAC affine), temporal smoothing (moving average), warp with crop to avoid borders.
 - Why affine (not homography): Avoids overfitting/perspective distortions; retina approximates a plane within FOV.
