@@ -15,13 +15,53 @@ A polished, reproducible pipeline that demonstrates feature-based stabilization 
 
 ## Quickstart
 
-```bash
-pip install -r requirements.txt
-python -m retinal_stab.cli --help
-python -m retinal_stab.cli synth --count 2
-python -m retinal_stab.cli stabilise --in data/synthetic --out data/output --method affine --smooth_win 45 --crop 0.06
-python scripts/side_by_side.py --before data/synthetic/demo_000.mp4 --after data/output/demo_000_stab.mp4 --out data/output/demo_000_compare.mp4
-```
+If you are new to Python projects, follow these steps **in order**. Every command is run from the root of the cloned repository (the folder that contains this README).
+
+1. **Open a terminal.**
+   - macOS / Linux: Launch the *Terminal* app.
+   - Windows: Use *Command Prompt* or *PowerShell*. If you have [Windows Subsystem for Linux](https://learn.microsoft.com/windows/wsl/install), that works great too.
+2. **Change into the project directory.** The prompt should look similar to `.../retinal-video-stabilization-demo$` after running:
+   ```bash
+   cd path/to/retinal-video-stabilization-demo
+   ```
+3. **(Optional but recommended) Create a virtual environment** so the dependencies stay isolated from other projects:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   ```
+4. **Install the Python packages** listed in `requirements.txt`:
+   ```bash
+   pip install -r requirements.txt
+   ```
+5. **Explore the command-line interface** and check that it loads:
+   ```bash
+   python -m retinal_stab.cli --help
+   ```
+6. **Generate practice videos** (synthetic, retina-like footage):
+   ```bash
+   python -m retinal_stab.cli synth --count 2
+   ```
+   You will see new `.mp4` files appear under `data/synthetic/`.
+7. **Run the stabilizer** on that folder and write results to `data/output/`:
+   ```bash
+   python -m retinal_stab.cli stabilise \
+     --in data/synthetic \
+     --out data/output \
+     --method affine \
+     --smooth_win 45 \
+     --crop 0.06
+   ```
+   The program prints a mini report (frame counts, inliers, stability index) so you can confirm it worked.
+8. **Create a side-by-side comparison video** (optional but great for presentations):
+   ```bash
+   python scripts/side_by_side.py \
+     --before data/synthetic/demo_000.mp4 \
+     --after data/output/demo_000_stab.mp4 \
+     --out data/output/demo_000_compare.mp4
+   ```
+   Play the output file to visually compare the stabilization.
+
+Each of the commands above can be re-run safely. If you ever forget where to execute them, remember: **always run them from the project root** so the relative paths (like `data/synthetic`) resolve correctly.
 
 ## Synthetic-to-Stable Demo
 
@@ -65,7 +105,7 @@ GitHub Actions (see `.github/workflows/ci.yml`) runs lint (`ruff`, `black --chec
 - Optical flow fallback when features are sparse.
 - Learning-based extensions to benchmark against classical methods.
 
-## Notes to present
+## How I’d explain this in an interview
 
 - Approach: Feature-based global stabilisation (ORB/SIFT → matches → RANSAC affine), temporal smoothing (moving average), warp with crop to avoid borders.
 - Why affine (not homography): Avoids overfitting/perspective distortions; retina approximates a plane within FOV.
