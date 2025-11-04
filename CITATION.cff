@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: Retinal Video Stabilization Demo
+message: If you use this demo, please cite it as below.
+authors:
+  - family-names: Demo
+    given-names: Interview
+    affiliation: Independent Researcher
+identifiers:
+  - type: url
+    value: https://github.com/example/retinal-video-stabilization-demo
+date-released: 2025-01-01
+version: 0.1.0
