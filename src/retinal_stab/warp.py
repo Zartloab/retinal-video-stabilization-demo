@@ -114,7 +114,8 @@ def stabilise_video(in_path: str, out_path: str, cfg: dict) -> Dict[str, object]
     writer = video_writer_like(in_path, out_path, meta["fps"], (meta["width"], meta["height"]))
     stabilised_frames: list[np.ndarray] = []
     for frame, M in zip(frames_color, smoothed_matrices):
-        warped = warp_frame(frame, M, float(cfg.get("crop_pct", 0.06)))
+        inv_M = cv2.invertAffineTransform(M.astype(np.float64)).astype(np.float32)
+        warped = warp_frame(frame, inv_M, float(cfg.get("crop_pct", 0.06)))
         writer.write(warped)
         stabilised_frames.append(warped)
     writer.release()
