@@ -61,6 +61,13 @@ If you are new to Python projects, follow these steps **in order**. Every comman
    ```
    Play the output file to visually compare the stabilization.
 
+   Prefer a minimal, self-contained script? You can run the Euclidean stabilizer directly:
+   ```bash
+   python scripts/euclidean_stabilizer.py data/synthetic/demo_000.mp4 data/output/demo_000_euclid.mp4 --window-size 30
+   ```
+   This script follows the textbook recipe requested by the interview panel: Shi-Tomasi corners → Lucas-Kanade tracks →
+   RANSAC-filtered similarity transform → sliding-window trajectory smoothing.
+
 Each of the commands above can be re-run safely. If you ever forget where to execute them, remember: **always run them from the project root** so the relative paths (like `data/synthetic`) resolve correctly.
 
 ## Synthetic-to-Stable Demo

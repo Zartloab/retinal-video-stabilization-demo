@@ -13,7 +13,7 @@ from .features import detect_and_describe, match_descriptors
 from .ingest import get_video_meta, iter_video_frames, video_writer_like
 from .metrics import stability_index
 from .preprocess import apply_clahe, denoise, retina_mask, to_gray
-from .smooth import affine_to_params, params_to_affine, smooth_param_sequence
+from .smooth import affine_to_params, moving_average, params_to_affine
 from .utils import ensure_dir, set_seed
 
 
@@ -105,27 +105,16 @@ def stabilise_video(in_path: str, out_path: str, cfg: dict) -> Dict[str, object]
         inliers_history.append(inlier_count)
 
     params = np.array([affine_to_params(M) for M in matrices], dtype=np.float32)
-    smoothed_params = smooth_param_sequence(params, int(cfg.get("smooth_win", 45)))
     trajectory = np.cumsum(params, axis=0)
-    smoothed_traj = np.cumsum(smoothed_params, axis=0)
+    smoothed_traj = moving_average(trajectory, int(cfg.get("smooth_win", 45)))
     correction = smoothed_traj - trajectory
-
-    actual_traj_mats = [params_to_affine(p) for p in trajectory]
-    smoothed_traj_mats = [params_to_affine(p) for p in smoothed_traj]
-    correction_matrices: list[np.ndarray] = []
-    for actual, target in zip(actual_traj_mats, smoothed_traj_mats):
-        actual_3x3 = np.vstack([actual.astype(np.float64), [0.0, 0.0, 1.0]])
-        target_3x3 = np.vstack([target.astype(np.float64), [0.0, 0.0, 1.0]])
-        try:
-            corr = target_3x3 @ np.linalg.inv(actual_3x3)
-        except np.linalg.LinAlgError:
-            corr = np.eye(3, dtype=np.float64)
-        correction_matrices.append(corr[:2].astype(np.float32))
+    smoothed_params = params + correction
+    smoothed_matrices = [params_to_affine(p) for p in smoothed_params]
 
     writer = video_writer_like(in_path, out_path, meta["fps"], (meta["width"], meta["height"]))
     stabilised_frames: list[np.ndarray] = []
-    for frame, corr in zip(frames_color, correction_matrices):
-        warped = warp_frame(frame, corr, float(cfg.get("crop_pct", 0.06)))
+    for frame, M in zip(frames_color, smoothed_matrices):
+        warped = warp_frame(frame, M, float(cfg.get("crop_pct", 0.06)))
         writer.write(warped)
         stabilised_frames.append(warped)
     writer.release()
