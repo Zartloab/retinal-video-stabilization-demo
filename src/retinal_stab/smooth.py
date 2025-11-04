@@ -61,3 +61,29 @@ def compose_affines_from_params(smoothed_params: np.ndarray) -> list[np.ndarray]
     """Convert smoothed incremental motion back to affine transforms."""
     matrices = [params_to_affine(p) for p in smoothed_params]
     return matrices
+
+
+def smooth_param_sequence(params: np.ndarray, win: int) -> np.ndarray:
+    """Center-smooth a sequence of affine motion parameters.
+
+    Parameters are assumed to be incremental transforms per frame. We convert to a
+    cumulative trajectory, smooth it, and then recover new incremental steps so
+    that the resulting transforms follow the stabilised trajectory.
+    """
+
+    if len(params) == 0:
+        return params
+
+    trajectory = np.cumsum(params, axis=0)
+    smoothed_traj = moving_average(trajectory, win)
+
+    # Preserve the first pose to avoid drifting the sequence away from the
+    # starting frame when the window is wider than the available observations.
+    smoothed_traj[0] = trajectory[0]
+
+    smoothed_params = np.empty_like(params)
+    smoothed_params[0] = smoothed_traj[0]
+    if len(params) > 1:
+        smoothed_params[1:] = smoothed_traj[1:] - smoothed_traj[:-1]
+
+    return smoothed_params.astype(np.float32)
