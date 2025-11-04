@@ -1,0 +1,12 @@
+seed: 42
+detector: ORB
+n_features: 2000
+ratio_test: 0.75
+ransac_reproj_thresh: 4.0
+min_inliers: 30
+smooth_win: 45
+crop_pct: 0.06
+mask_inner_radius_pct: 0.85
+method: affine
+denoise: median
+clahe: true
