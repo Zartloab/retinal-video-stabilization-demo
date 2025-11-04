@@ -99,6 +99,11 @@ GitHub Actions (see `.github/workflows/ci.yml`) runs lint (`ruff`, `black --chec
 3. Run the demo end-to-end: `make demo`.
 4. Explore metrics and plots via `notebooks/01_demo_metrics.ipynb`.
 
+## Documentation
+
+- [Interview brief (PDF)](docs/interview_brief.pdf)
+- [Vessel extraction & stabilization survey](docs/vessel_extraction_stabilization.md)
+
 ## Future Work
 
 - Optic disc–anchored micro-stabilisation to refine residual motion.
