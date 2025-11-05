@@ -119,7 +119,15 @@ def build_parser() -> argparse.ArgumentParser:
     stab.add_argument("--in", dest="in_dir", default="data/input")
     stab.add_argument("--out", dest="out", default="data/output")
     stab.add_argument("--config", default="configs/default.yaml")
-    stab.add_argument("--method", choices=["affine", "homography"], default="affine")
+    stab.add_argument(
+        "--method",
+        choices=["similarity", "affine", "euclidean", "lk_similarity"],
+        default="similarity",
+        help=(
+            "Motion model for RANSAC alignment. Similarity (rigid + scale) is the "
+            "recommended baseline for preserving vessel geometry."
+        ),
+    )
     stab.add_argument("--detector", choices=["ORB", "SIFT"], default="ORB")
     stab.add_argument("--smooth_win", type=int, default=45)
     stab.add_argument("--crop", type=float, default=0.06)

@@ -6,11 +6,11 @@ A polished, reproducible pipeline that demonstrates feature-based stabilization 
 
 ## Pipeline at a Glance
 ```
-┌──────────┐   ┌────────────┐   ┌─────────────┐   ┌───────────┐   ┌──────────────┐
-│ Ingest   │─▶│ Preprocess  │─▶│ Feature/     │─▶│ Motion     │─▶│ Warp &        │
-│ frames   │  │ (gray +     │  │ match +      │  │ smoothing  │  │ crop output   │
-│ (BGR)    │  │ CLAHE + mask│  │ RANSAC affine│  │ (moving avg│  │ (+ metrics)   │
-└──────────┘   └────────────┘   └─────────────┘   └───────────┘   └──────────────┘
+┌──────────┐   ┌────────────┐   ┌─────────────────────────────┐   ┌───────────┐   ┌──────────────┐
+│ Ingest   │─▶│ Preprocess  │─▶│ Feature match +               │─▶│ Motion     │─▶│ Warp &        │
+│ frames   │  │ (gray +     │  │ RANSAC similarity (default)   │  │ smoothing  │  │ crop output   │
+│ (BGR)    │  │ CLAHE + mask│  │ (rigid + uniform scale)       │  │ (moving avg│  │ (+ metrics)   │
+└──────────┘   └────────────┘   └─────────────────────────────┘   └───────────┘   └──────────────┘
 ```
 
 ## Quickstart
@@ -43,14 +43,14 @@ If you are new to Python projects, follow these steps **in order**. Every comman
    ```
    You will see new `.mp4` files appear under `data/synthetic/`.
 7. **Run the stabilizer** on that folder and write results to `data/output/`:
-   ```bash
-   python -m retinal_stab.cli stabilise \
-     --in data/synthetic \
-     --out data/output \
-     --method affine \
-     --smooth_win 45 \
-     --crop 0.06
-   ```
+    ```bash
+    python -m retinal_stab.cli stabilise \
+      --in data/synthetic \
+      --out data/output \
+      --method similarity \
+      --smooth_win 45 \
+      --crop 0.06
+    ```
    The program prints a mini report (frame counts, inliers, stability index) so you can confirm it worked.
 8. **Create a side-by-side comparison video** (optional but great for presentations):
    ```bash
@@ -73,7 +73,7 @@ Each of the commands above can be re-run safely. If you ever forget where to exe
 ## Synthetic-to-Stable Demo
 
 1. `python -m retinal_stab.cli synth --count 2` creates jittery synthetic fundus videos in `data/synthetic/` with baked-in blinks and low-light noise.
-2. `python -m retinal_stab.cli stabilise ...` runs the affine pipeline, reports inliers, and writes stabilised videos to `data/output/`.
+2. `python -m retinal_stab.cli stabilise ...` runs the similarity pipeline (default), reports inliers, and writes stabilised videos to `data/output/`.
 3. `python scripts/side_by_side.py ...` stacks the before/after results for qualitative review.
 4. Run `python -m retinal_stab.cli metrics --before ... --after ...` to quantify the stability index.
 
@@ -113,19 +113,19 @@ GitHub Actions (see `.github/workflows/ci.yml`) runs lint (`ruff`, `black --chec
 
 ## Future Work
 
-- Optic disc–anchored micro-stabilisation to refine residual motion.
-- Optical flow fallback when features are sparse.
+- **Optic disc–anchored stabilization** (e.g., using ECC/NATM) to establish a fixed coordinate system and minimize frame drift, crucial for accurate temporal annotation (SVP).
+- Optical flow fusion when features are sparse.
 - Learning-based extensions to benchmark against classical methods.
 
 ## How I’d explain this in an interview
 
-- Approach: Feature-based global stabilisation (ORB/SIFT → matches → RANSAC affine), temporal smoothing (moving average), warp with crop to avoid borders.
-- Why affine (not homography): Avoids overfitting/perspective distortions; retina approximates a plane within FOV.
+- Approach: Feature-based global stabilisation (ORB/SIFT → matches → RANSAC **similarity (default)**), temporal smoothing (moving average), warp with crop to avoid borders.
+- Why **Similarity** (not Affine): Similarity (rigid + uniform scale) is now the default. The retina is treated as a **rigid surface**, and the Affine model's allowance for **shear distortion** risks warping the vessel geometry, which is critical for accurate clinical measurements (e.g., vessel width, SVP analysis). Similarity provides the necessary constraint to **preserve geometric fidelity**, aligning with best practices used in datasets like RVD.
 - Tuning knobs: n_features, ratio_test, ransac_reproj_thresh, smooth_win, crop_pct, mask radius.
-- Failure modes & mitigations: blinks/occlusions (inlier gating + hold last), low texture (fallback to SIFT or dense flow extension), drift (keyframe re-anchors).
+- Failure modes & mitigations: blinks/occlusions (inlier gating + hold last), low texture (**LK Similarity method provides a fast, robust optical flow fallback**), drift (keyframe re-anchors).
 - Evaluation: stability index (optical flow magnitude) and feature drift; qualitative side-by-side.
 - Ethics: no patient data; synthetic demo included.
-- Future work: optic-disc anchored micro-stabilisation; optical flow fusion; learning-based benchmark.
+- Future work: **Optic disc–anchored stabilization** (ECC/NATM) for drift-free coordinates; optical flow fusion; learning-based benchmark.
 
 ## Citation
 

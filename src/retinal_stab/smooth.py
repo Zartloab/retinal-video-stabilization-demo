@@ -2,33 +2,67 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, List
 
+import cv2
 import numpy as np
 
 
-def affine_to_params(M: np.ndarray) -> np.ndarray:
-    """Convert a 2x3 affine matrix into [dx, dy, da] parameters."""
-    dx = float(M[0, 2])
-    dy = float(M[1, 2])
-    da = math.atan2(M[1, 0], M[0, 0])
-    return np.array([dx, dy, da], dtype=np.float32)
+_EPS = 1e-9
 
 
-def params_to_affine(params: np.ndarray) -> np.ndarray:
-    """Reconstruct a 2x3 affine transform from [dx, dy, da] parameters."""
-    dx, dy, da = params
-    cos_a = math.cos(float(da))
-    sin_a = math.sin(float(da))
-    matrix = np.array([[cos_a, -sin_a, dx], [sin_a, cos_a, dy]], dtype=np.float32)
-    return matrix
+def motion_to_params(M: np.ndarray, model: str) -> np.ndarray:
+    """Decompose a 2x3 motion matrix into additive parameters for smoothing."""
+    model = model.lower()
+    if model not in {"similarity", "affine", "euclidean", "lk_similarity"}:
+        raise ValueError(f"Unsupported motion model: {model}")
+
+    retval, R, t, scales, shear = cv2.decomposeAffine2D(np.asarray(M, dtype=np.float32))
+    if retval == 0:
+        raise ValueError("Affine decomposition failed")
+
+    tx, ty = [float(v) for v in t.flatten()[:2]]
+    angle = math.atan2(float(R[1, 0]), float(R[0, 0]))
+    sx, sy = [float(v) for v in scales.flatten()[:2]]
+    shear_val = float(shear) if np.ndim(shear) == 0 else float(np.asarray(shear).reshape(-1)[0])
+
+    if model == "euclidean":
+        return np.array([tx, ty, angle], dtype=np.float32)
+
+    if model in {"similarity", "lk_similarity"}:
+        scale = max((sx + sy) * 0.5, _EPS)
+        log_scale = math.log(scale)
+        return np.array([tx, ty, angle, log_scale], dtype=np.float32)
+
+    # full affine (6 DOF)
+    sx = max(abs(sx), _EPS)
+    sy = max(abs(sy), _EPS)
+    log_sx = math.log(sx)
+    log_sy = math.log(sy)
+    return np.array([tx, ty, angle, log_sx, log_sy, shear_val], dtype=np.float32)
 
 
-def accumulate_params(Ms: list[np.ndarray]) -> np.ndarray:
-    """Integrate per-frame motion into an absolute trajectory."""
-    params = np.array([affine_to_params(M) for M in Ms], dtype=np.float32)
-    trajectory = np.cumsum(params, axis=0)
-    return trajectory
+def params_to_motion(params: np.ndarray, model: str) -> np.ndarray:
+    """Recompose a motion matrix from smoothed parameters."""
+    model = model.lower()
+    if model not in {"similarity", "affine", "euclidean", "lk_similarity"}:
+        raise ValueError(f"Unsupported motion model: {model}")
+
+    if model == "euclidean":
+        tx, ty, angle = [float(v) for v in params[:3]]
+        scale_x = scale_y = 1.0
+        shear_val = 0.0
+    elif model in {"similarity", "lk_similarity"}:
+        tx, ty, angle, log_scale = [float(v) for v in params[:4]]
+        scale = math.exp(log_scale)
+        scale_x = scale_y = scale
+        shear_val = 0.0
+    else:  # affine
+        tx, ty, angle, log_sx, log_sy, shear_val = [float(v) for v in params[:6]]
+        scale_x = math.exp(log_sx)
+        scale_y = math.exp(log_sy)
+
+    matrix = _compose_affine(tx, ty, angle, scale_x, scale_y, shear_val)
+    return matrix.astype(np.float32)
 
 
 def moving_average(params: np.ndarray, win: int) -> np.ndarray:
@@ -38,11 +72,27 @@ def moving_average(params: np.ndarray, win: int) -> np.ndarray:
     pad = win // 2
     padded = np.pad(params, ((pad, pad), (0, 0)), mode="edge")
     kernel = np.ones(win) / win
-    smoothed = np.vstack([np.convolve(padded[:, i], kernel, mode="valid") for i in range(params.shape[1])]).T
+    smoothed = np.vstack(
+        [np.convolve(padded[:, i], kernel, mode="valid") for i in range(params.shape[1])]
+    ).T
     return smoothed.astype(np.float32)
 
 
-def compose_affines_from_params(smoothed_params: np.ndarray) -> list[np.ndarray]:
-    """Convert smoothed incremental motion back to affine transforms."""
-    matrices = [params_to_affine(p) for p in smoothed_params]
-    return matrices
+def _compose_affine(
+    tx: float,
+    ty: float,
+    angle: float,
+    scale_x: float,
+    scale_y: float,
+    shear: float,
+) -> np.ndarray:
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    rotation = np.array([[cos_a, -sin_a], [sin_a, cos_a]], dtype=np.float32)
+    shear_matrix = np.array([[scale_x, shear * scale_x], [0.0, scale_y]], dtype=np.float32)
+    linear = rotation @ shear_matrix
+    matrix = np.array(
+        [[linear[0, 0], linear[0, 1], tx], [linear[1, 0], linear[1, 1], ty]],
+        dtype=np.float32,
+    )
+    return matrix
