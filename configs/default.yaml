@@ -7,6 +7,6 @@ min_inliers: 30
 smooth_win: 45
 crop_pct: 0.06
 mask_inner_radius_pct: 0.85
-method: affine
+method: similarity
 denoise: median
 clahe: true

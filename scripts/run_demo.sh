@@ -9,7 +9,7 @@ echo "[1/4] Generating synthetic retinal videos..."
 python -m retinal_stab.cli synth --count 2 --out data/synthetic
 
 echo "[2/4] Stabilising generated videos..."
-python -m retinal_stab.cli stabilise --in data/synthetic --out data/output --method affine --smooth_win 45 --crop 0.06
+python -m retinal_stab.cli stabilise --in data/synthetic --out data/output --method similarity --smooth_win 45 --crop 0.06
 
 FIRST=$(ls data/synthetic/*.mp4 | head -n 1)
 BASENAME=$(basename "$FIRST" .mp4)
